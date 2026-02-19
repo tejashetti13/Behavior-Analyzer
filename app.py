@@ -7,7 +7,8 @@ import time
 st.set_page_config(layout="wide")
 
 st.title("Multi-Modal Behavioral Inconsistency Analyzer")
-st.subheader("Blink Rate Monitoring")
+
+mode = st.radio("Select Mode", ["Baseline Capture", "Response Analysis"])
 
 start = st.button("Start Camera")
 
@@ -32,14 +33,15 @@ last_blink_time = 0
 
 session_start_time = time.time()
 
+baseline_rate = None
+
 
 def calculate_EAR(landmarks, eye_indices):
     eye = np.array([(landmarks[i].x, landmarks[i].y) for i in eye_indices])
     vertical1 = np.linalg.norm(eye[1] - eye[5])
     vertical2 = np.linalg.norm(eye[2] - eye[4])
     horizontal = np.linalg.norm(eye[0] - eye[3])
-    ear = (vertical1 + vertical2) / (2.0 * horizontal)
-    return ear
+    return (vertical1 + vertical2) / (2.0 * horizontal)
 
 
 LEFT_EYE = [33, 160, 158, 133, 153, 144]
@@ -58,10 +60,8 @@ if start:
         if results.multi_face_landmarks:
             for face_landmarks in results.multi_face_landmarks:
                 landmarks = face_landmarks.landmark
-
                 left_ear = calculate_EAR(landmarks, LEFT_EYE)
                 right_ear = calculate_EAR(landmarks, RIGHT_EYE)
-
                 ear = (left_ear + right_ear) / 2.0
 
                 current_time = time.time()
@@ -71,17 +71,28 @@ if start:
                         blink_count += 1
                         last_blink_time = current_time
 
-        # Calculate blink rate
         elapsed_time = time.time() - session_start_time
         blink_rate = (blink_count / elapsed_time) * 60 if elapsed_time > 0 else 0
 
-        # Display stats
-        stats_placeholder.markdown(f"""
-        ### 📊 Blink Statistics
-        - Total Blinks: **{blink_count}**
-        - Blink Rate (per minute): **{blink_rate:.2f}**
-        - Time Elapsed: **{elapsed_time:.1f} sec**
-        """)
+        if mode == "Baseline Capture" and elapsed_time >= 10:
+            baseline_rate = blink_rate
+            stats_placeholder.success(f"Baseline Blink Rate Captured: {baseline_rate:.2f}")
+            break
+
+        if mode == "Response Analysis" and baseline_rate is not None:
+            deviation = blink_rate - baseline_rate
+            stats_placeholder.markdown(f"""
+            ### 📊 Analysis
+            - Baseline Rate: **{baseline_rate:.2f}**
+            - Current Rate: **{blink_rate:.2f}**
+            - Deviation: **{deviation:.2f}**
+            """)
+
+        else:
+            stats_placeholder.markdown(f"""
+            ### 📊 Current Blink Rate
+            - **{blink_rate:.2f} per minute**
+            """)
 
         frame_placeholder.image(frame)
 
