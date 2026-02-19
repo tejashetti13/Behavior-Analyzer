@@ -7,12 +7,12 @@ import time
 st.set_page_config(layout="wide")
 
 st.title("Multi-Modal Behavioral Inconsistency Analyzer")
-st.subheader("Blink Detection Module")
+st.subheader("Blink Rate Monitoring")
 
 start = st.button("Start Camera")
 
 frame_placeholder = st.empty()
-blink_counter_placeholder = st.empty()
+stats_placeholder = st.empty()
 
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(
@@ -30,14 +30,14 @@ blink_threshold = 0.21
 blink_cooldown = 0.3
 last_blink_time = 0
 
+session_start_time = time.time()
+
 
 def calculate_EAR(landmarks, eye_indices):
     eye = np.array([(landmarks[i].x, landmarks[i].y) for i in eye_indices])
-
     vertical1 = np.linalg.norm(eye[1] - eye[5])
     vertical2 = np.linalg.norm(eye[2] - eye[4])
     horizontal = np.linalg.norm(eye[0] - eye[3])
-
     ear = (vertical1 + vertical2) / (2.0 * horizontal)
     return ear
 
@@ -71,9 +71,17 @@ if start:
                         blink_count += 1
                         last_blink_time = current_time
 
-                cv2.putText(frame, f"Blinks: {blink_count}",
-                            (30, 50), cv2.FONT_HERSHEY_SIMPLEX,
-                            1, (0, 255, 0), 2)
+        # Calculate blink rate
+        elapsed_time = time.time() - session_start_time
+        blink_rate = (blink_count / elapsed_time) * 60 if elapsed_time > 0 else 0
+
+        # Display stats
+        stats_placeholder.markdown(f"""
+        ### 📊 Blink Statistics
+        - Total Blinks: **{blink_count}**
+        - Blink Rate (per minute): **{blink_rate:.2f}**
+        - Time Elapsed: **{elapsed_time:.1f} sec**
+        """)
 
         frame_placeholder.image(frame)
 
